@@ -50,7 +50,7 @@
 #define UFS_QUIRK_BROKEN_HCE	(1<<2)
 
 #undef	SCSI_UFS_DEBUG
-//#define       SCSI_UFS_DEBUG
+#define       SCSI_UFS_DEBUG
 
 #define UFS_FIRMWARE_UPDATE
 
