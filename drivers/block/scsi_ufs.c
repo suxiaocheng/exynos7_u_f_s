@@ -1863,6 +1863,43 @@ int ufs_init(int mode)
 	}
 
 	ufs_identify_bootlun();
+	
+	ufs_send_upiu(UFS_SEND_READ_DEVICE_DESC);
+	print_ufs_device_desc((u8 *)(&(_ufs[0]->device_desc)));
+	ufs_send_upiu(UFS_SEND_READ_CONFIG_DESC);
+	print_ufs_configuration_desc((u8 *)(&(_ufs[0]->config_desc)));
+
+	if(_ufs[0]->config_desc.unit[0].bLUEnable == 0){
+		printf("Going to enabled lun0\n");
+
+		if(_ufs[0]->config_desc.unit[0].dNumAllocUnits == 0){
+			printf("Lun0 space size is 0\nReading geometry to get disk info first...\n");
+			ufs_send_upiu(UFS_SEND_READ_GEOMETRY_DESC);
+			print_ufs_geometry_desc((u8 *)(&(_ufs[0]->geometry_desc)));
+
+			printf("Setting lun0 to half of the disk size...\n");
+
+			{
+				u32 align = _ufs[0]->geometry_desc.bAllocationUnitSize*be32_to_cpu(_ufs[0]->geometry_desc.dSegmentSize);
+				u32 disk_size = be32_to_cpu(_ufs[0]->geometry_desc.qTotalRawDeviceCapacity_l);
+				u8 unit = _ufs[0]->geometry_desc.bAllocationUnitSize;
+				u32 lun0_size = ((disk_size/2)/align);
+				_ufs[0]->config_desc.unit[0].bLogicalBlockSize = 0x0c;
+				_ufs[0]->config_desc.unit[0].dNumAllocUnits = be32_to_cpu(lun0_size);
+
+				printf("Info:\n\talign: 0x%x, total: 0x%x, unit: 0x%x, lun0 size: 0x%x\n", align, disk_size, unit, lun0_size);				
+			}			
+		}
+		
+		/* Enable lun0 for test */
+		_ufs[0]->config_desc.unit[0].bLUEnable = 0x01;
+		ufs_send_upiu(UFS_SEND_WRITE_CONFIG_DESC);
+
+		printf("Setting lun0 finish\n");
+	}
+
+	ufs_send_upiu(UFS_SEND_READ_CONFIG_DESC);
+	print_ufs_configuration_desc((u8 *)(&(_ufs[0]->config_desc)));
 
 	scsi_scan(mode);
 
